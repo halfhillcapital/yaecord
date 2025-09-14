@@ -1,0 +1,39 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Optional: VS Code settings
+.vscode/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Misc
+*.tgz
+.idea/
+*.swp
+*.swo
+whispercpp/
+recordings/
