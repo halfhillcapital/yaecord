@@ -3,7 +3,7 @@ import path from "path";
 import fetch from "node-fetch";
 import prism from "prism-media";
 import { Readable } from "stream";
-import { exec } from "child_process";
+import { spawn } from "child_process";
 import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMember } from "discord.js";
 import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus } from "@discordjs/voice";
 
@@ -53,6 +53,72 @@ async function generateTTS(text: string) {
     });
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
+}
+
+async function convert_audio(opusStream: prism.opus.Decoder): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        const sampleRate = 48000;
+        const channels = 2;
+        const bitDepth = 's16le';
+
+        const ffmpeg = spawn('ffmpeg', [
+            '-f', bitDepth,
+            '-ar', sampleRate.toString(),
+            '-ac', channels.toString(),
+            '-i', 'pipe:0',
+            '-f', 'wav',
+            'pipe:1'
+        ]);
+
+        opusStream.pipe(ffmpeg.stdin);
+        const wavBuffer: Buffer[] = [];
+
+        ffmpeg.stdout.on('data', (chunk) => {
+            wavBuffer.push(chunk);
+        });
+        ffmpeg.stdout.on('end', () => {
+            console.log('WAV conversion completed.');
+            return resolve(Buffer.concat(wavBuffer));
+        });
+
+        ffmpeg.on('error', (error) => {
+            console.error('FFMPEG Error:', error);
+            return reject(error);
+        });
+        ffmpeg.on('close', (code) => {
+            if (code !== 0) {
+                const error = new Error(`FFMPEG exited with code ${code}`);
+                console.error(error);
+                return reject(error);
+            }
+        });
+    });
+}
+
+//TODO: Fix this mess, loads model every time and has to write and then read from disk -> very inefficient
+// Better to use a library Speechmatics or similar
+async function transcribe_audio(buffer: Buffer): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const filename = 'temp.txt';
+        const whisper = spawn(whisperexe, ['-m', whispermodel, '-f', '-', '-of', 'temp', '-otxt','-nt']);
+
+        whisper.on('error', (error) => {
+            console.error('Transcription Error:', error);
+            reject(error);
+        });
+        whisper.on('close', (code) => {
+            if (code !== 0) {
+                const error = new Error(`Whisper.cpp exited with code ${code}`);
+                console.error(error);
+                reject(error);
+            }
+            const transcript = fs.readFileSync(filename, 'utf-8');
+            resolve(transcript.trim());
+        });
+
+        whisper.stdin.write(buffer);
+        whisper.stdin.end();
+    });
 }
 
 export default {
@@ -113,51 +179,22 @@ export default {
                     activeStreams.delete(userId);
                 });
 
-                const filename = `./recordings/${user.username}-${Date.now()}.pcm`;
-                const writeStream = fs.createWriteStream(filename);
-                pcmStream.pipe(writeStream);
-
-                writeStream.on('finish', async () => {
-                    console.log(`Saved ${filename}`);
-
-                    const stats = fs.statSync(filename);
-                    const bytesPerSecond = 48000 * 2 * 2;
-                    const durationSec = stats.size / bytesPerSecond;
-
-                    if (durationSec < 1.0) {
+                convert_audio(pcmStream)
+                .then(async (wavBuffer) => {                  
+                    if (wavBuffer.length < 200000) { // less than 1 second
                         console.log('Skipped short utterance.')
-                        fs.unlink(filename, (err) => { if (err) console.log(err); });
                         return;
                     }
 
-                    const wavFile = filename.replace('.pcm', '.wav');
-                    //TODO: Rewrite using promises
-                    exec(
-                        `ffmpeg -f s16le -ar 48k -ac 2 -i ${filename} ${wavFile}`,
-                        async (err) => {
-                            if (err) {
-                                console.error('FFMPEG Error:', err);
-                                return;
-                            }
-
-                            exec(
-                                `${whisperexe} -m ${whispermodel} -f ${wavFile} -nt`,
-                                async (err, stdout) => {
-                                    if (err) {
-                                        console.error('STT Error:', err);
-                                        return;
-                                    }
-                                    const answer = await sendMessage(userId, user.username, stdout.trim());
-                                    const audioBuffer = await generateTTS(answer);
-                                    const audioStream = Readable.from(audioBuffer);
-                                    const resource = createAudioResource(audioStream);
-                                    player.play(resource);
-                                }
-                            );
-
-                            fs.unlink(filename, (err) => { if (err) console.log(err); });
-                        }
-                    );
+                    const transcription = await transcribe_audio(wavBuffer);
+                    const answer = await sendMessage(userId, user.username, transcription);
+                    const audioBuffer = await generateTTS(answer);
+                    const audioStream = Readable.from(audioBuffer);
+                    const resource = createAudioResource(audioStream);
+                    player.play(resource);
+                })
+                .catch(err => {
+                    console.error('Audio Error:', err);
                 });
             });
         } else {
