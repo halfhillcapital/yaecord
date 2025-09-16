@@ -7,27 +7,11 @@ import { spawn } from "child_process";
 import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMember } from "discord.js";
 import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus } from "@discordjs/voice";
 
+import { sendMessage } from "../agent/endpoint.ts";
+
 const activeStreams = new Map();
 const whisperexe = path.join(process.cwd(), 'whispercpp', 'whisper-cli.exe');
 const whispermodel = path.join(process.cwd(), 'whispercpp', 'models', 'ggml-medium.bin');
-
-async function sendMessage(user_id: string, username: string, message: string) {
-    console.log(`Sending ${user_id} : ${username} = ${message}`);
-    const response = await fetch(process.env.YAE_URL + '/chat', {
-        method: "POST",
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-            user_id: user_id,
-            username: username,
-            message: message,
-        }),
-    });
-    try {
-        const data = await response.json();
-        console.log("Yae Answers:", data);
-        return data;
-    } catch (error) { console.error(error); }
-}
 
 async function generateTTS(text: string) {
     const body = {
@@ -77,7 +61,6 @@ async function convert_audio(opusStream: prism.opus.Decoder): Promise<Buffer> {
             wavBuffer.push(chunk);
         });
         ffmpeg.stdout.on('end', () => {
-            console.log('WAV conversion completed.');
             return resolve(Buffer.concat(wavBuffer));
         });
 
@@ -164,7 +147,7 @@ export default {
                 const audioStream = connection.receiver.subscribe(userId, {
                     end: {
                         behavior: EndBehaviorType.AfterSilence,
-                        duration: 1000,
+                        duration: 500,
                     },
                 });
 
@@ -175,12 +158,11 @@ export default {
                 );
 
                 pcmStream.on('end', () => {
-                    console.log(`Stream from ${user.username} ended.`)
                     activeStreams.delete(userId);
                 });
-
+                
                 convert_audio(pcmStream)
-                .then(async (wavBuffer) => {                  
+                .then(async (wavBuffer) => {               
                     if (wavBuffer.length < 200000) { // less than 1 second
                         console.log('Skipped short utterance.')
                         return;

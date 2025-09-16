@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { Client, Events, Collection, GatewayIntentBits, MessageFlags } from "discord.js";
+import { Client, Events, Collection, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
+
+import { sendMessage } from "./agent/endpoint.ts";
 
 // Extend the Client type to include 'commands'
 declare module "discord.js" {
@@ -9,20 +11,23 @@ declare module "discord.js" {
   }
 }
 
-import join from "./commands/voice/join.ts"
-import leave from "./commands/voice/leave.ts"
+import join from "./commands/join.ts"
+import leave from "./commands/leave.ts"
 import clean from "./commands/clean.ts"
 
 process.loadEnvFile();
 
 const discord = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
-  ],
+    partials: [
+        Partials.Channel,
+    ],
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages,
+    ],
 });
 
 discord.commands = new Collection();
@@ -58,16 +63,24 @@ discord.on(Events.MessageCreate, async (message) => {
         console.log('Ignore other bots...')
         return;
     }
+
+    const userId = message.author.id;
+    const username = message.author.username;
+    const content = message.content;
     
     // Direct Message
     if (message.guild === null) {
-
+        await message.channel.sendTyping();
+        const response = await sendMessage(userId, username, content);
+        await message.channel.send(response);
         return;
     }
 
     // Mentions and Replies
     if (message.mentions.has(discord.user || '') || message.reference) {
-
+        await message.channel.sendTyping();
+        const response = await sendMessage(userId, username, content);
+        await message.reply(response);
         return;
     }
 });
@@ -81,6 +94,3 @@ discord.once(Events.ClientReady, () => {
 });
 
 discord.login(process.env.DISCORD_API_KEY)
-
-//TODO: Edit voice slash commands so that Yae only joins if she is not already in a channel
-//TODO: Make it so that only I and the person that invited her can make her disconnect
