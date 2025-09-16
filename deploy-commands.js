@@ -2,8 +2,8 @@ import fs from "fs";
 import path from "path";
 import { REST, Routes } from "discord.js";
 
-import join from "./src/commands/voice/join.js"
-import leave from "./src/commands/voice/leave.js"
+import join from "./src/commands/join.js"
+import leave from "./src/commands/leave.js"
 import clean from "./src/commands/clean.js"
 
 process.loadEnvFile();
