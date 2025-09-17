@@ -39,7 +39,7 @@ async function generateTTS(text: string) {
     return Buffer.from(arrayBuffer);
 }
 
-async function convert_audio(opusStream: prism.opus.Decoder): Promise<Buffer> {
+async function convertAudio(opusStream: prism.opus.Decoder): Promise<Buffer> {
     return new Promise((resolve, reject) => {
         const sampleRate = 48000;
         const channels = 2;
@@ -80,7 +80,7 @@ async function convert_audio(opusStream: prism.opus.Decoder): Promise<Buffer> {
 
 //TODO: Fix this mess, loads model every time and has to write and then read from disk -> very inefficient
 // Better to use a library Speechmatics or similar
-async function transcribe_audio(buffer: Buffer): Promise<string> {
+async function transcribeAudio(buffer: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
         const filename = 'temp.txt';
         const whisper = spawn(whisperexe, ['-m', whispermodel, '-f', '-', '-of', 'temp', '-otxt','-nt']);
@@ -161,14 +161,14 @@ export default {
                     activeStreams.delete(userId);
                 });
                 
-                convert_audio(pcmStream)
+                convertAudio(pcmStream)
                 .then(async (wavBuffer) => {               
                     if (wavBuffer.length < 200000) { // less than 1 second
                         console.log('Skipped short utterance.')
                         return;
                     }
 
-                    const transcription = await transcribe_audio(wavBuffer);
+                    const transcription = await transcribeAudio(wavBuffer);
                     const answer = await sendMessage(userId, user.username, transcription);
                     const audioBuffer = await generateTTS(answer);
                     const audioStream = Readable.from(audioBuffer);
