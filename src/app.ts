@@ -91,6 +91,11 @@ discord.once(Events.ClientReady, () => {
     } else {
         console.log('Logged in, but user is not available.');
     }
+
+    // Uncomment the following lines to clear all commands (for debugging purposes)
+    // const guild = discord.guilds.cache.get(process.env.DISCORD_GUILD_ID);
+    // discord.application.commands.set([]);
+    // guild?.commands.set([]);
 });
 
 discord.login(process.env.DISCORD_API_KEY)

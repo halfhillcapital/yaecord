@@ -1,17 +1,17 @@
-import fs from "fs";
-import path from "path";
 import { REST, Routes } from "discord.js";
 
-import join from "./src/commands/join.js"
-import leave from "./src/commands/leave.js"
-import clean from "./src/commands/clean.js"
+import join from "./src/commands/join.ts"
+import leave from "./src/commands/leave.ts"
+import clean from "./src/commands/clean.ts"
 
 process.loadEnvFile();
 
 const commands = [];
-commands.push(join.data.toJSON());
-commands.push(leave.data.toJSON());
 commands.push(clean.data.toJSON());
+
+const guildCommands = [];
+guildCommands.push(join.data.toJSON());
+guildCommands.push(leave.data.toJSON());
 
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(process.env.DISCORD_API_KEY);
@@ -19,15 +19,20 @@ const rest = new REST().setToken(process.env.DISCORD_API_KEY);
 // and deploy your commands!
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+		console.log(`Started refreshing ${commands.length + guildCommands.length} application (/) commands.`);
 
 		// The put method is used to fully refresh all commands in the guild with the current set
 		const data = await rest.put(
-			Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.DISCORD_GUILD_ID),
+			Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
 			{ body: commands },
+		);
+		const guildData = await rest.put(
+			Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.DISCORD_GUILD_ID),
+			{ body: guildCommands },
 		);
 
 		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+		console.log(`Successfully reloaded ${guildData.length} guild application (/) commands.`);
 	} catch (error) {
 		// And of course, make sure you catch and log any errors!
 		console.error(error);
