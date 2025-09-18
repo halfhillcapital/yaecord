@@ -1,6 +1,3 @@
-import fs from "fs";
-import path from "path";
-import fetch from "node-fetch";
 import prism from "prism-media";
 import { Readable } from "stream";
 import { spawn } from "child_process";
@@ -8,38 +5,11 @@ import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMe
 import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus } from "@discordjs/voice";
 
 import { sendMessage } from "../agent/endpoint.ts";
+import { whisperTranscribe, cartesiaTTS } from "../agent/integrations.ts";
 
 const activeStreams = new Map();
-const whisperexe = path.join(process.cwd(), 'whispercpp', 'whisper-cli.exe');
-const whispermodel = path.join(process.cwd(), 'whispercpp', 'models', 'ggml-medium.bin');
 
-async function generateTTS(text: string) {
-    const body = {
-        model_id: 'sonic-2',
-        transcript: text,
-        voice: { mode: 'id', id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02'},
-        output_format: {
-            container: 'mp3',
-            sample_rate: 48000,
-            bit_rate: 128000
-        },
-        language: 'en',
-        speed: 'normal'
-    };
-    const response = await fetch("https://api.cartesia.ai/tts/bytes", {
-        method: "POST",
-        headers: {
-            'Cartesia-Version': '2024-06-10',
-            'content-type': 'application/json',
-            'X-API-Key': process.env.CARTESIA_API_KEY
-        },
-        body: JSON.stringify(body)
-    });
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-}
-
-async function convertAudio(opusStream: prism.opus.Decoder): Promise<Buffer> {
+async function convertToWAV(opusStream: prism.opus.Decoder): Promise<Buffer> {
     return new Promise((resolve, reject) => {
         const sampleRate = 48000;
         const channels = 2;
@@ -75,32 +45,6 @@ async function convertAudio(opusStream: prism.opus.Decoder): Promise<Buffer> {
                 return reject(error);
             }
         });
-    });
-}
-
-//TODO: Fix this mess, loads model every time and has to write and then read from disk -> very inefficient
-// Better to use a library Speechmatics or similar
-async function transcribeAudio(buffer: Buffer): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const filename = 'temp.txt';
-        const whisper = spawn(whisperexe, ['-m', whispermodel, '-f', '-', '-of', 'temp', '-otxt','-nt']);
-
-        whisper.on('error', (error) => {
-            console.error('Transcription Error:', error);
-            reject(error);
-        });
-        whisper.on('close', (code) => {
-            if (code !== 0) {
-                const error = new Error(`Whisper.cpp exited with code ${code}`);
-                console.error(error);
-                reject(error);
-            }
-            const transcript = fs.readFileSync(filename, 'utf-8');
-            resolve(transcript.trim());
-        });
-
-        whisper.stdin.write(buffer);
-        whisper.stdin.end();
     });
 }
 
@@ -161,19 +105,21 @@ export default {
                     activeStreams.delete(userId);
                 });
                 
-                convertAudio(pcmStream)
+                convertToWAV(pcmStream)
                 .then(async (wavBuffer) => {               
                     if (wavBuffer.length < 200000) { // less than 1 second
                         console.log('Skipped short utterance.')
                         return;
                     }
 
-                    const transcription = await transcribeAudio(wavBuffer);
+                    const transcription = await whisperTranscribe(wavBuffer);
                     const answer = await sendMessage(userId, user.username, transcription);
-                    const audioBuffer = await generateTTS(answer);
-                    const audioStream = Readable.from(audioBuffer);
-                    const resource = createAudioResource(audioStream);
-                    player.play(resource);
+                    console.log(`${user.username} asked: ${transcription}`);
+                    console.log(`Yae answered: ${answer}`);
+                    // const audioBuffer = await cartesiaTTS(answer);
+                    // const audioStream = Readable.from(audioBuffer);
+                    // const resource = createAudioResource(audioStream);
+                    // player.play(resource);
                 })
                 .catch(err => {
                     console.error('Audio Error:', err);
