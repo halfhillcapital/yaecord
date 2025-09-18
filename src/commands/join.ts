@@ -2,12 +2,30 @@ import prism from "prism-media";
 import { Readable } from "stream";
 import { spawn } from "child_process";
 import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMember } from "discord.js";
-import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus } from "@discordjs/voice";
+import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus, AudioResource, AudioPlayer } from "@discordjs/voice";
 
-import { sendMessage } from "../agent/endpoint.ts";
+import { yaeCallMessage, yaeChatMessage } from "../agent/endpoint.ts";
 import { whisperTranscribe, cartesiaTTS } from "../agent/integrations.ts";
 
 const activeStreams = new Map();
+
+async function addSpeechToQueue(queue: AudioResource[], player: AudioPlayer, speech: AudioResource) {
+    queue.push(speech);
+    if (player.state.status === AudioPlayerStatus.Idle) {
+        speak(queue, player);
+    }
+}
+
+async function speak(queue: AudioResource[], player: AudioPlayer) {
+    if (queue.length === 0) return;
+
+    const speech = queue.shift();
+    player.play(speech);
+
+    player.once(AudioPlayerStatus.Idle, () => {
+        speak(queue, player);
+    });
+}
 
 async function convertToWAV(opusStream: prism.opus.Decoder): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -71,9 +89,7 @@ export default {
             const player = createAudioPlayer();
             connection.subscribe(player);
 
-            player.on(AudioPlayerStatus.Playing, () => {
-                console.log('The audio player has started playing!');
-            });
+            const audioQueue: AudioResource[] = [];
 
             player.on('error', (error) => {
                 console.error('Error occurred:', error);
@@ -113,13 +129,13 @@ export default {
                     }
 
                     const transcription = await whisperTranscribe(wavBuffer);
-                    const answer = await sendMessage(userId, user.username, transcription);
                     console.log(`${user.username} asked: ${transcription}`);
-                    console.log(`Yae answered: ${answer}`);
-                    // const audioBuffer = await cartesiaTTS(answer);
-                    // const audioStream = Readable.from(audioBuffer);
-                    // const resource = createAudioResource(audioStream);
-                    // player.play(resource);
+                    for await (const sentence of yaeCallMessage(userId, transcription)) {
+                        const audioBuffer = await cartesiaTTS(sentence);
+                        const audioStream = Readable.from(audioBuffer);
+                        const resource = createAudioResource(audioStream);
+                        addSpeechToQueue(audioQueue, player, resource);
+                    }
                 })
                 .catch(err => {
                     console.error('Audio Error:', err);
