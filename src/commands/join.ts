@@ -132,9 +132,7 @@ export default {
                     console.log(`${user.username} asked: ${transcription}`);
                     for await (const sentence of yaeCallMessage(userId, transcription)) {
                         const audioBuffer = await cartesiaTTS(sentence);
-                        const audioStream = Readable.from(audioBuffer);
-                        const resource = createAudioResource(audioStream);
-                        addSpeechToQueue(audioQueue, player, resource);
+                        addSpeechToQueue(audioQueue, player, createAudioResource(Readable.from(audioBuffer)));
                     }
                 })
                 .catch(err => {

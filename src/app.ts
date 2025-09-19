@@ -13,6 +13,7 @@ declare module "discord.js" {
 
 import join from "./commands/join.ts"
 import leave from "./commands/leave.ts"
+import deafen from "./commands/deafen.ts"
 import clean from "./commands/clean.ts"
 
 process.loadEnvFile();
@@ -33,6 +34,7 @@ const discord = new Client({
 discord.commands = new Collection();
 discord.commands.set(join.data.name, join);
 discord.commands.set(leave.data.name, leave);
+discord.commands.set(deafen.data.name, deafen);
 discord.commands.set(clean.data.name, clean);
 
 // Executing Slash Commands
@@ -65,7 +67,6 @@ discord.on(Events.MessageCreate, async (message) => {
     }
 
     const userId = message.author.id;
-    const username = message.author.username;
     const content = message.content;
     
     // Direct Message

@@ -2,6 +2,7 @@ import { REST, Routes } from "discord.js";
 
 import join from "./src/commands/join.ts"
 import leave from "./src/commands/leave.ts"
+import deafen from "./src/commands/deafen.ts";
 import clean from "./src/commands/clean.ts"
 
 process.loadEnvFile();
@@ -12,6 +13,7 @@ commands.push(clean.data.toJSON());
 const guildCommands = [];
 guildCommands.push(join.data.toJSON());
 guildCommands.push(leave.data.toJSON());
+guildCommands.push(deafen.data.toJSON());
 
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(process.env.DISCORD_API_KEY);
