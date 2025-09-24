@@ -5,7 +5,7 @@ import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMe
 import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus, AudioResource, AudioPlayer } from "@discordjs/voice";
 
 import { yaeCallMessage, yaeChatMessage } from "../agent/endpoint.ts";
-import { whisperTranscribe, cartesiaTTS } from "../agent/integrations.ts";
+import { whisperTranscribe, kokoroTTS } from "../agent/integrations.ts";
 
 const activeStreams = new Map();
 
@@ -76,6 +76,11 @@ export default {
             return;
         }
 
+        if (interaction.member.user.id != process.env.ADMIN_ID) {
+            await interaction.reply({ content: 'Absolutely not. Find someone else to bother.', flags: MessageFlags.Ephemeral });
+            return;
+        }
+
         const member = interaction.member as GuildMember;
         const channel = member.voice.channel;
         if (channel) {
@@ -131,7 +136,7 @@ export default {
                     const transcription = await whisperTranscribe(wavBuffer);
                     console.log(`${user.username} asked: ${transcription}`);
                     for await (const sentence of yaeCallMessage(userId, transcription)) {
-                        const audioBuffer = await cartesiaTTS(sentence);
+                        const audioBuffer = await kokoroTTS(sentence);
                         addSpeechToQueue(audioQueue, player, createAudioResource(Readable.from(audioBuffer)));
                     }
                 })

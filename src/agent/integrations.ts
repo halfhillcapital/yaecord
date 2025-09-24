@@ -26,7 +26,7 @@ export async function cartesiaTTS(text: string) {
     const body = {
         model_id: 'sonic-2',
         transcript: text,
-        voice: { mode: 'id', id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02'},
+        voice: { mode: 'id', id: '3e271bcd-0aca-4e9c-b86d-f7464734cde1'},
         output_format: {
             container: 'mp3',
             sample_rate: 48000,
@@ -41,6 +41,27 @@ export async function cartesiaTTS(text: string) {
             'Cartesia-Version': '2024-06-10',
             'content-type': 'application/json',
             'X-API-Key': process.env.CARTESIA_API_KEY
+        },
+        body: JSON.stringify(body)
+    });
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+}
+
+//af_heart | Good for general use
+//af_nicole | Whispery Speech
+export async function kokoroTTS(text: string) {
+    const body = {
+        model: 'kokoro',
+        input: text,
+        voice: 'af_heart',
+        response_format: 'mp3',
+        speed: 1.0
+    };
+    const response = await fetch("http://localhost:8880/v1/audio/speech", {
+        method: "POST",
+        headers: {
+            'content-type': 'application/json'
         },
         body: JSON.stringify(body)
     });

@@ -6,6 +6,11 @@ export default {
         .setName('leave')
         .setDescription('Make Yae leave the voice channel.'),
     async execute(interaction: ChatInputCommandInteraction) {
+        if (interaction.member.user.id != process.env.ADMIN_ID) {
+            await interaction.reply({ content: 'Absolutely not. Find someone else to bother.', flags: MessageFlags.Ephemeral });
+            return;
+        }
+
         const connection = getVoiceConnection(interaction.guild.id);
 
         if (connection) {

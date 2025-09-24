@@ -10,6 +10,11 @@ export default {
                 .setDescription('Whether to deafen (true) or undeafen (false)')
                 .setRequired(true)),
     async execute(interaction: ChatInputCommandInteraction) {
+        if (interaction.member.user.id != process.env.ADMIN_ID) {
+            await interaction.reply({ content: 'Amusing that you think that would work.', flags: MessageFlags.Ephemeral });
+            return;
+        }
+
         const connection = getVoiceConnection(interaction.guild.id);
         const deafenState = interaction.options.getBoolean('state', true);
 
