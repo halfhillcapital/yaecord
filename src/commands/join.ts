@@ -1,70 +1,13 @@
 import prism from "prism-media";
-import { Readable } from "stream";
-import { spawn } from "child_process";
+
 import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMember } from "discord.js";
-import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioPlayerStatus, AudioResource, AudioPlayer } from "@discordjs/voice";
+import { joinVoiceChannel, getVoiceConnection, createAudioPlayer, EndBehaviorType, createAudioResource, AudioReceiveStream, StreamType } from "@discordjs/voice";
 
-import { yaeCallMessage, yaeChatMessage } from "../agent/endpoint.ts";
+import { yaeVoiceMessage } from "../agent/endpoint.ts";
+import { AudioQueue, convertToWAV } from "../agent/audio.ts";
+import { AddressingDetector } from "../agent/logic.ts";
+import { ChatBuffer } from "../utils/buffer.ts";
 import { whisperTranscribe, kokoroTTS } from "../agent/integrations.ts";
-
-const activeStreams = new Map();
-
-async function addSpeechToQueue(queue: AudioResource[], player: AudioPlayer, speech: AudioResource) {
-    queue.push(speech);
-    if (player.state.status === AudioPlayerStatus.Idle) {
-        speak(queue, player);
-    }
-}
-
-async function speak(queue: AudioResource[], player: AudioPlayer) {
-    if (queue.length === 0) return;
-
-    const speech = queue.shift();
-    player.play(speech);
-
-    player.once(AudioPlayerStatus.Idle, () => {
-        speak(queue, player);
-    });
-}
-
-async function convertToWAV(opusStream: prism.opus.Decoder): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        const sampleRate = 48000;
-        const channels = 2;
-        const bitDepth = 's16le';
-
-        const ffmpeg = spawn('ffmpeg', [
-            '-f', bitDepth,
-            '-ar', sampleRate.toString(),
-            '-ac', channels.toString(),
-            '-i', 'pipe:0',
-            '-f', 'wav',
-            'pipe:1'
-        ]);
-
-        opusStream.pipe(ffmpeg.stdin);
-        const wavBuffer: Buffer[] = [];
-
-        ffmpeg.stdout.on('data', (chunk) => {
-            wavBuffer.push(chunk);
-        });
-        ffmpeg.stdout.on('end', () => {
-            return resolve(Buffer.concat(wavBuffer));
-        });
-
-        ffmpeg.on('error', (error) => {
-            console.error('FFMPEG Error:', error);
-            return reject(error);
-        });
-        ffmpeg.on('close', (code) => {
-            if (code !== 0) {
-                const error = new Error(`FFMPEG exited with code ${code}`);
-                console.error(error);
-                return reject(error);
-            }
-        });
-    });
-}
 
 export default {
     data: new SlashCommandBuilder()
@@ -91,14 +34,18 @@ export default {
                 selfDeaf: false,
             });
 
+            let groupChat: boolean = false;
+            const messageBuffer = new ChatBuffer();
+            const addressingDetector = new AddressingDetector();
+            const activeStreams: Map<string, AudioReceiveStream> = new Map();
+            
             const player = createAudioPlayer();
-            connection.subscribe(player);
-
-            const audioQueue: AudioResource[] = [];
-
             player.on('error', (error) => {
                 console.error('Error occurred:', error);
             });
+
+            connection.subscribe(player);
+            const audioQueue = new AudioQueue(player);
 
             await interaction.reply({ content: `Joined ${channel}`, flags: MessageFlags.Ephemeral });
 
@@ -107,12 +54,14 @@ export default {
                 const user = interaction.client.users.cache.get(userId);
 
                 if (activeStreams.has(userId)) return;
-                console.log(`Listening to ${user.username}`);
+
+                if (channel.members.size > 2) groupChat = true;
+                else groupChat = false;
 
                 const audioStream = connection.receiver.subscribe(userId, {
                     end: {
                         behavior: EndBehaviorType.AfterSilence,
-                        duration: 500,
+                        duration: 250,
                     },
                 });
 
@@ -129,15 +78,29 @@ export default {
                 convertToWAV(pcmStream)
                 .then(async (wavBuffer) => {               
                     if (wavBuffer.length < 200000) { // less than 1 second
-                        console.log('Skipped short utterance.')
                         return;
                     }
 
+                    // if (audioQueue.isPlaying) {
+                    //     audioQueue.clear();
+                    // }
+
+                    let context: ChatHistory = []
                     const transcription = await whisperTranscribe(wavBuffer);
-                    console.log(`${user.username} asked: ${transcription}`);
-                    for await (const sentence of yaeCallMessage(userId, transcription)) {
-                        const audioBuffer = await kokoroTTS(sentence);
-                        addSpeechToQueue(audioQueue, player, createAudioResource(Readable.from(audioBuffer)));
+                    console.log(`${user.username}: ${transcription}`);
+                    if (groupChat) {
+                        if (addressingDetector.detect(transcription)) {
+                            context = messageBuffer.getLastNMessages(5);
+                        } else {
+                            messageBuffer.addMessage({ user_id: userId, content: transcription });
+                            return;
+                        }
+                    }
+
+                    for await (const sentence of yaeVoiceMessage({ user_id: userId, content: transcription }, context)) {
+                        console.log(`Yae: ${sentence}`);
+                        const audioStream = await kokoroTTS(sentence);
+                        audioQueue.add(createAudioResource(audioStream, { inputType: StreamType.Arbitrary }));
                     }
                 })
                 .catch(err => {

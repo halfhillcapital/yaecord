@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { Client, Events, Collection, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
 
 import { yaeChatMessage } from "./agent/endpoint.ts";
@@ -72,7 +70,7 @@ discord.on(Events.MessageCreate, async (message) => {
     // Direct Message
     if (message.guild === null) {
         await message.channel.sendTyping();
-        const response = await yaeChatMessage(userId, content);
+        const response = await yaeChatMessage({ user_id: userId, content });
         await message.channel.send(response);
         return;
     }
@@ -80,7 +78,7 @@ discord.on(Events.MessageCreate, async (message) => {
     // Mentions and Replies
     if (message.mentions.has(discord.user || '') || message.reference) {
         await message.channel.sendTyping();
-        const response = await yaeChatMessage(userId, content);
+        const response = await yaeChatMessage({ user_id: userId, content });
         await message.reply(response);
         return;
     }

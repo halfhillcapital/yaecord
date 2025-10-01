@@ -56,7 +56,8 @@ export async function kokoroTTS(text: string) {
         input: text,
         voice: 'af_heart',
         response_format: 'mp3',
-        speed: 1.0
+        speed: 1.0,
+        stream: true
     };
     const response = await fetch("http://localhost:8880/v1/audio/speech", {
         method: "POST",
@@ -65,6 +66,6 @@ export async function kokoroTTS(text: string) {
         },
         body: JSON.stringify(body)
     });
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+
+    return Readable.from(response.body);
 }

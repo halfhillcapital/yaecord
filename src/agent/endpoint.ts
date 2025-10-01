@@ -1,12 +1,11 @@
 //TODO: filter out @mentions from message before sending to YAE
 
-export async function yaeChatMessage(user_id: string, message: string): Promise<string> {
+export async function yaeChatMessage(msg: ChatMessage): Promise<string> {
     const response = await fetch(process.env.YAE_URL + '/chat', {
         method: "POST",
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-            user_id: user_id,
-            message: message
+            message: msg
         }),
     });
     try {
@@ -15,13 +14,13 @@ export async function yaeChatMessage(user_id: string, message: string): Promise<
     } catch (error) { console.error(error); }
 }
 
-export async function* yaeCallMessage(user_id: string, message: string) {
-    const response = await fetch(process.env.YAE_URL + '/call', {
+export async function* yaeVoiceMessage(msg: ChatMessage, context?: ChatHistory): AsyncGenerator<string> {
+    const response = await fetch(process.env.YAE_URL + '/voice', {
         method: "POST",
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-            user_id: user_id,
-            message: message
+            message: msg,
+            ...(context && { context })
         }),
     });
     try {
