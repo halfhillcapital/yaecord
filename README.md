@@ -1,3 +1,3 @@
 # yaecord
 
-Discord client and MCP server for yae
+Discord client for the Y.A.E. companion AI.
