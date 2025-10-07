@@ -84,11 +84,19 @@ discord.on(Events.MessageCreate, async (message) => {
     }
 });
 
-discord.once(Events.ClientReady, () => {
+discord.once(Events.ClientReady, async () => {
     if (discord.user) {
         console.log(`Logged in as ${discord.user.tag}`);
     } else {
         console.log('Logged in, but user is not available.');
+    }
+
+    // Start the REST API server once Discord client is ready
+    try {
+        const { startAPIServer } = await import('./server.js');
+        startAPIServer(discord);
+    } catch (error) {
+        console.error('Failed to start REST API server:', error);
     }
 
     // Uncomment the following lines to clear all commands (for debugging purposes)
