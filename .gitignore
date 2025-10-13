@@ -36,5 +36,6 @@ temp.txt
 .idea/
 *.swp
 *.swo
+whisper/
 whispercpp/
 recordings/
