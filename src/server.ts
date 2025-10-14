@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Application, Request } from 'express';
-import { Client, GuildMember, TextChannel, User } from 'discord.js';
+import { Client, TextChannel } from 'discord.js';
 import { getVoiceConnection } from "@discordjs/voice";
 import { startVoiceChat } from './agent/voice';
 
@@ -12,7 +12,7 @@ type MessageRequest = {
 
 type VoiceRequest = {
     id: string
-}
+};
 
 // Export function to start the server with a Discord client instance
 export function startAPIServer(discordClient: Client): Application {
@@ -30,7 +30,7 @@ export function startAPIServer(discordClient: Client): Application {
             if (targetType === 'channel') {
                 const channel = discordClient.channels.cache.get(targetId) as TextChannel;
                 if (!channel) {
-                    return res.status(404).json({ error: 'Channel not found' });
+                    return res.status(404).json({ error: 'Channel not found.' });
                 }
 
                 try {
@@ -38,12 +38,12 @@ export function startAPIServer(discordClient: Client): Application {
                     res.status(200).json({ success: true });
                 } catch (error) {
                     console.error('Error sending message:', error);
-                    res.status(500).json({ error: 'Failed to send message' });
+                    res.status(500).json({ error: 'Failed to send message.' });
                 }
             } else if (targetType === 'user') {
                 const user = await discordClient.users.fetch(targetId);
                 if (!user) {
-                    return res.status(404).json({ error: 'User not found' });
+                    return res.status(404).json({ error: 'User not found.' });
                 }
 
                 try {
@@ -51,7 +51,7 @@ export function startAPIServer(discordClient: Client): Application {
                     res.status(200).json({ success: true });
                 } catch (error) {
                     console.error('Error sending message:', error);
-                    res.status(500).json({ error: 'Failed to send message' });
+                    res.status(500).json({ error: 'Failed to send message.' });
                 }
             }
         });
