@@ -10,7 +10,7 @@ export async function yaeChatMessage(msg: ChatMessage): Promise<string> {
             }),
         });
         if (response.status !== 200) throw new Error(`HTTP ${response.status}`, { cause: await response.text() });
-        const data = await response.json();
+        const data = await response.text();
         return data;
     } catch (error) { 
         console.error(error); 
