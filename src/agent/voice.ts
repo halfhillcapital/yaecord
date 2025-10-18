@@ -5,7 +5,7 @@ import { joinVoiceChannel, createAudioPlayer, EndBehaviorType, createAudioResour
 import { ChatBuffer } from "../utils/buffer.ts";
 import { yaeVoiceMessage } from "./endpoint.ts";
 import { AddressingDetector } from "./logic.ts";
-import { AudioQueue, convertToWAV } from "./audio.ts";
+import { AudioQueue, opusToWAV } from "./audio.ts";
 import { whisperTranscribe, kokoroTTS } from "./integrations.ts";
 
 export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceConnection> {
@@ -52,7 +52,7 @@ export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceC
             activeStreams.delete(userId);
         });
 
-        convertToWAV(pcmStream)
+        opusToWAV(pcmStream)
             .then(async (wavBuffer) => {
                 if (wavBuffer.length < 200000) { // less than 1 second
                     return;

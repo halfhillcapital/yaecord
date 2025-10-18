@@ -1,5 +1,4 @@
 import prism from "prism-media";
-import { spawn } from "child_process";
 import { AudioPlayerStatus, AudioResource, AudioPlayer } from "@discordjs/voice";
 
 export class AudioQueue {
@@ -41,41 +40,46 @@ export class AudioQueue {
     }
 }
 
-export async function convertToWAV(opusStream: prism.opus.Decoder): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        const sampleRate = 48000;
-        const channels = 2;
-        const bitDepth = 's16le';
+export async function opusToWAV(
+    decoder: prism.opus.Decoder,
+    channels = 2,
+    sampleRate = 48000,
+    bitsPerSample = 16
+): Promise<Buffer> {
+    const chunks: Buffer[] = [];
 
-        const ffmpeg = spawn('ffmpeg', [
-            '-f', bitDepth,
-            '-ar', sampleRate.toString(),
-            '-ac', channels.toString(),
-            '-i', 'pipe:0',
-            '-f', 'wav',
-            'pipe:1'
-        ]);
-
-        opusStream.pipe(ffmpeg.stdin);
-        const wavBuffer: Buffer[] = [];
-
-        ffmpeg.stdout.on('data', (chunk) => {
-            wavBuffer.push(chunk);
-        });
-        ffmpeg.stdout.on('end', () => {
-            return resolve(Buffer.concat(wavBuffer));
-        });
-
-        ffmpeg.on('error', (error) => {
-            console.error('FFMPEG Error:', error);
-            return reject(error);
-        });
-        ffmpeg.on('close', (code) => {
-            if (code !== 0) {
-                const error = new Error(`FFMPEG exited with code ${code}`);
-                console.error(error);
-                return reject(error);
-            }
-        });
+    // Collect all PCM data from the decoder stream
+    await new Promise<void>((resolve, reject) => {
+        decoder.on("data", (chunk: Buffer) => chunks.push(chunk));
+        decoder.on("end", () => resolve());
+        decoder.on("error", (err) => reject(err));
     });
+
+    const pcmData = Buffer.concat(chunks);
+    const byteRate = (sampleRate * channels * bitsPerSample) / 8;
+    const blockAlign = (channels * bitsPerSample) / 8;
+    const dataSize = pcmData.length;
+    const chunkSize = 36 + dataSize;
+
+    // Create a WAV header buffer (44 bytes)
+    const header = Buffer.alloc(44);
+
+    header.write("RIFF", 0);                  // ChunkID
+    header.writeUInt32LE(chunkSize, 4);       // ChunkSize
+    header.write("WAVE", 8);                  // Format
+    header.write("fmt ", 12);                 // Subchunk1ID
+    header.writeUInt32LE(16, 16);             // Subchunk1Size (PCM)
+    header.writeUInt16LE(1, 20);              // AudioFormat (1 = PCM)
+    header.writeUInt16LE(channels, 22);       // NumChannels
+    header.writeUInt32LE(sampleRate, 24);     // SampleRate
+    header.writeUInt32LE(byteRate, 28);       // ByteRate
+    header.writeUInt16LE(blockAlign, 32);     // BlockAlign
+    header.writeUInt16LE(bitsPerSample, 34);  // BitsPerSample
+    header.write("data", 36);                 // Subchunk2ID
+    header.writeUInt32LE(dataSize, 40);       // Subchunk2Size
+
+    // Combine header + PCM data
+    return Buffer.concat([header, pcmData]);
 }
+
+export async function wavToOPUS() {}
