@@ -93,7 +93,7 @@ discord.once(Events.ClientReady, async () => {
 
     // Start the REST API server once Discord client is ready
     try {
-        const { startAPIServer } = await import('./server.js');
+        const { startAPIServer } = await import('./server.ts');
         startAPIServer(discord);
     } catch (error) {
         console.error('Failed to start REST API server:', error);

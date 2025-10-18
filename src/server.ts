@@ -2,7 +2,7 @@ import express from 'express';
 import type { Application, Request } from 'express';
 import { Client, TextChannel } from 'discord.js';
 import { getVoiceConnection } from "@discordjs/voice";
-import { startVoiceChat } from './agent/voice';
+import { startVoiceChat } from './agent/voice.ts';
 
 type MessageRequest = {
     type: 'channel' | 'user';
