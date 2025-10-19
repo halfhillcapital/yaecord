@@ -4,7 +4,11 @@
   "description": "",
   "main": "src/app.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "tsx src/app.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docker:build": "docker build -t yaecord .",
+    "docker:run": "docker run -p 8020:8020 --name yaecord yaecord"
   },
   "keywords": [],
   "author": "Halfhill Capital",

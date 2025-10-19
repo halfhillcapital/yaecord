@@ -2,6 +2,8 @@ import express from 'express';
 import type { Application, Request } from 'express';
 import { Client, TextChannel } from 'discord.js';
 import { getVoiceConnection } from "@discordjs/voice";
+
+import { config } from './config.ts';
 import { startVoiceChat } from './agent/voice.ts';
 
 type MessageRequest = {
@@ -17,7 +19,6 @@ type VoiceRequest = {
 // Export function to start the server with a Discord client instance
 export function startAPIServer(discordClient: Client): Application {
     const app = express();
-    const PORT = 8020;
 
     app.get('/status', (req, res) => {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -84,8 +85,8 @@ export function startAPIServer(discordClient: Client): Application {
             else res.status(404).json({ error: 'Not connected to any voice channel.' });
         });
 
-    app.listen(PORT, () => {
-        console.log(`API server is running on http://localhost:${PORT}`);
+    app.listen(config.PORT, () => {
+        console.log(`API server is running on http://localhost:${config.PORT}`);
     });
 
     return app;

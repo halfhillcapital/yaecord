@@ -81,5 +81,3 @@ export async function opusToWAV(
     // Combine header + PCM data
     return Buffer.concat([header, pcmData]);
 }
-
-export async function wavToOPUS() {}

@@ -1,8 +1,10 @@
 //TODO: filter out @mentions from message before sending to YAE
 
+import { config } from "../config.ts";
+
 export async function yaeChatMessage(msg: ChatMessage): Promise<string> {
     try {
-        const response = await fetch(process.env.YAE_URL + '/chat', {
+        const response = await fetch(`${config.YAE_URL}/chat`, {
             method: "POST",
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
@@ -20,7 +22,7 @@ export async function yaeChatMessage(msg: ChatMessage): Promise<string> {
 
 export async function* yaeVoiceMessage(msg: ChatMessage, context?: ChatHistory): AsyncGenerator<string> {
     try {
-        const response = await fetch(process.env.YAE_URL + '/voice', {
+        const response = await fetch(`${config.YAE_URL}/voice`, {
             method: "POST",
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({

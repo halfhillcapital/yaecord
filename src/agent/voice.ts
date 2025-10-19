@@ -74,9 +74,10 @@ export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceC
                     }
                 }
 
+                // OPUS output is currently bugged in Kokoro TTS, wait for fix
                 for await (const sentence of yaeVoiceMessage({ user_id: userId, content: transcription }, context)) {
                     const audioStream = await kokoroTTS(sentence);
-                    audioQueue.add(createAudioResource(audioStream, { inputType: StreamType.Arbitrary }));
+                    audioQueue.add(createAudioResource(audioStream, { inputType: StreamType.OggOpus }));
                 }
             })
             .catch(err => {

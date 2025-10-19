@@ -2,9 +2,11 @@ import fetch from "node-fetch";
 import FormData from 'form-data';
 import { Readable } from "stream";
 
+import { config } from '../config.ts';
+
 export async function whisperTranscribe(audio: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
-        const url = 'http://localhost:8080/inference';
+        const url = `${config.WHISPER_URL}/inference`;
         const form = new FormData();
         form.append('file', Readable.from(audio));
         form.append('temperature', '0.0');
@@ -22,32 +24,6 @@ export async function whisperTranscribe(audio: Buffer): Promise<string> {
     });
 }
 
-export async function cartesiaTTS(text: string) {
-    const body = {
-        model_id: 'sonic-2',
-        transcript: text,
-        voice: { mode: 'id', id: '3e271bcd-0aca-4e9c-b86d-f7464734cde1'},
-        output_format: {
-            container: 'mp3',
-            sample_rate: 48000,
-            bit_rate: 128000
-        },
-        language: 'en',
-        speed: 'normal'
-    };
-    const response = await fetch("https://api.cartesia.ai/tts/bytes", {
-        method: "POST",
-        headers: {
-            'Cartesia-Version': '2024-06-10',
-            'content-type': 'application/json',
-            'X-API-Key': process.env.CARTESIA_API_KEY
-        },
-        body: JSON.stringify(body)
-    });
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-}
-
 //af_heart | Good for general use
 //af_nicole | Whispery Speech
 export async function kokoroTTS(text: string) {
@@ -55,11 +31,11 @@ export async function kokoroTTS(text: string) {
         model: 'kokoro',
         input: text,
         voice: 'af_heart',
-        response_format: 'mp3',
+        response_format: 'opus',
         speed: 1.0,
         stream: true
     };
-    const response = await fetch("http://localhost:8880/v1/audio/speech", {
+    const response = await fetch(`${config.KOKORO_URL}/v1/audio/speech`, {
         method: "POST",
         headers: {
             'content-type': 'application/json'
