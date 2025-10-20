@@ -74,10 +74,13 @@ export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceC
                     }
                 }
 
-                // OPUS output is currently bugged in Kokoro TTS, wait for fix
+                // OPUS output is currently bugged in Kokoro TTS, converting PCM to OPUS here in the meantime
                 for await (const sentence of yaeVoiceMessage({ user_id: userId, content: transcription }, context)) {
-                    const audioStream = await kokoroTTS(sentence);
-                    audioQueue.add(createAudioResource(audioStream, { inputType: StreamType.OggOpus }));
+                    const pcmStream = await kokoroTTS(sentence);
+                    const opusStream = pcmStream.pipe(
+                        new prism.opus.Encoder({ rate: 24000, channels: 1, frameSize: 480 })
+                    );
+                    audioQueue.add(createAudioResource(opusStream, { inputType: StreamType.Opus }));
                 }
             })
             .catch(err => {

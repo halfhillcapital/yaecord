@@ -31,7 +31,7 @@ export async function kokoroTTS(text: string) {
         model: 'kokoro',
         input: text,
         voice: 'af_heart',
-        response_format: 'opus',
+        response_format: 'pcm',
         speed: 1.0,
         stream: true
     };
