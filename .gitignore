@@ -36,3 +36,5 @@ temp.txt
 .idea/
 *.swp
 *.swo
+
+db.json

@@ -1,12 +1,15 @@
-import { Client, Events, Collection, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
+import { JSONFilePreset } from "lowdb/node"
+import { Client, Events, Collection, GatewayIntentBits, MessageFlags, Partials } from "discord.js"
 
-import { yaeChatMessage } from "./agent/endpoint.ts";
+import { yaeChatMessage } from "./agent/endpoint.ts"
+import { getSessionManager } from "./agent/sessions.ts"
+
 
 // Extend the Client type to include 'commands'
 declare module "discord.js" {
-  interface Client {
-    commands: Collection<string, any>;
-  }
+    interface Client {
+        commands: Collection<string, any>
+    }
 }
 
 import join from "./commands/join.ts"
@@ -14,7 +17,21 @@ import leave from "./commands/leave.ts"
 import deafen from "./commands/deafen.ts"
 import clean from "./commands/clean.ts"
 
-process.loadEnvFile();
+process.loadEnvFile()
+
+const sessionManager = await getSessionManager()
+
+async function collectFromStream(msg: ChatMessage): Promise<string> {
+    let response = ""
+    for await (const chunk of yaeChatMessage(msg)) {
+        response += chunk
+    }
+    return response
+}
+
+function isStringEmpty(str: string): boolean {
+    return !str || str.trim() === ''
+}
 
 const discord = new Client({
     partials: [
@@ -27,13 +44,13 @@ const discord = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.DirectMessages,
     ],
-});
+})
 
-discord.commands = new Collection();
-discord.commands.set(join.data.name, join);
-discord.commands.set(leave.data.name, leave);
-discord.commands.set(deafen.data.name, deafen);
-discord.commands.set(clean.data.name, clean);
+discord.commands = new Collection()
+discord.commands.set(join.data.name, join)
+discord.commands.set(leave.data.name, leave)
+discord.commands.set(deafen.data.name, deafen)
+discord.commands.set(clean.data.name, clean)
 
 // Executing Slash Commands
 discord.on(Events.InteractionCreate, async interaction => {
@@ -41,9 +58,9 @@ discord.on(Events.InteractionCreate, async interaction => {
 
     const command = interaction.client.commands.get(interaction.commandName);
     if (!command) {
-		console.error(`No command matching ${interaction.commandName} was found.`);
-		return;
-	}
+        console.error(`No command matching ${interaction.commandName} was found.`);
+        return;
+    }
 
     try {
         await command.execute(interaction);
@@ -57,30 +74,39 @@ discord.on(Events.InteractionCreate, async interaction => {
 discord.on(Events.MessageCreate, async (message) => {
     if (message.author.id === discord.user?.id) {
         console.log('Ignore message from self...')
-        return; 
+        return
     }
     if (message.author.bot) {
         console.log('Ignore other bots...')
-        return;
+        return
     }
 
-    const userId = message.author.id;
-    const content = message.content;
-    
+    const userId = message.author.id
+    const channelId = message.channel.id
+    const content = message.content
+
     // Direct Message
     if (message.guild === null) {
-        await message.channel.sendTyping();
-        const response = await yaeChatMessage({ user_id: userId, content });
-        await message.channel.send(response);
-        return;
+        await message.channel.sendTyping()
+        const uuid = await sessionManager.getUserSession(userId)
+
+        const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
+        const response = await collectFromStream(msg)
+        if (response && !isStringEmpty(response)) await message.reply(response)
+        else console.log("Warning: Cannot send empty message.")
+        return
     }
 
     // Mentions and Replies
     if (message.mentions.has(discord.user || '') || message.reference) {
-        await message.channel.sendTyping();
-        const response = await yaeChatMessage({ user_id: userId, content });
-        await message.reply(response);
-        return;
+        await message.channel.sendTyping()
+        const uuid = await sessionManager.getChannelSession(channelId)
+
+        const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
+        const response = await collectFromStream(msg)
+        if (response && !isStringEmpty(response)) await message.reply(response)
+        else console.log("Warning: Cannot send empty message.")
+        return
     }
 });
 

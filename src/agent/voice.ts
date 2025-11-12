@@ -2,13 +2,25 @@ import prism from "prism-media";
 import type { VoiceBasedChannel } from "discord.js";
 import { joinVoiceChannel, createAudioPlayer, EndBehaviorType, createAudioResource, StreamType, VoiceConnection } from "@discordjs/voice";
 
-import { ChatBuffer } from "../utils/buffer.ts";
-import { yaeVoiceMessage } from "./endpoint.ts";
-import { AddressingDetector } from "./logic.ts";
 import { AudioQueue, opusToWAV } from "./audio.ts";
+import { createMessage, yaeVoiceMessage } from "./endpoint.ts";
 import { whisperTranscribe, kokoroTTS } from "./integrations.ts";
 
-export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceConnection> {
+
+class AddressingDetector {
+    private addressingKeywords: string[];
+
+    constructor(keywords?: string[]) {
+        this.addressingKeywords = keywords || ['yae', 'kitsune'];
+    }
+
+    public detect(message: string): boolean {
+        const lowerCaseMessage = message.toLowerCase();
+        return this.addressingKeywords.some(keyword => lowerCaseMessage.includes(keyword));
+    }
+}
+
+export async function startVoiceChat(channel: VoiceBasedChannel, session: string): Promise<VoiceConnection> {
     const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
@@ -23,7 +35,6 @@ export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceC
     connection.subscribe(player);
 
     let isGroupChat: boolean = false;
-    const messageBuffer = new ChatBuffer();
     const audioQueue = new AudioQueue(player);
     const addressingDetector = new AddressingDetector();
     const activeStreams: Map<string, number> = new Map();
@@ -62,20 +73,17 @@ export async function startVoiceChat(channel: VoiceBasedChannel): Promise<VoiceC
                 //     audioQueue.clear();
                 // }
 
-                let context: ChatHistory = []
+                let context: ChatMessage[] = []
                 const transcription = await whisperTranscribe(wavBuffer);
 
-                if (isGroupChat) {
-                    if (addressingDetector.detect(transcription)) {
-                        context = messageBuffer.getLastNMessages(5);
-                    } else {
-                        messageBuffer.addMessage({ user_id: userId, content: transcription });
-                        return;
-                    }
+                if (isGroupChat && !addressingDetector.detect(transcription)) {
+                    const savedMessage = await createMessage({ user_id: userId, content: transcription, session_uuid: session })
+                    console.log(savedMessage)
+                    return
                 }
 
                 // OPUS output is currently bugged in Kokoro TTS, converting PCM to OPUS here in the meantime
-                for await (const sentence of yaeVoiceMessage({ user_id: userId, content: transcription }, context)) {
+                for await (const sentence of yaeVoiceMessage({ user_id: userId, content: transcription, session_uuid: session })) {
                     const pcmStream = await kokoroTTS(sentence);
                     const opusStream = pcmStream.pipe(
                         new prism.opus.Encoder({ rate: 24000, channels: 1, frameSize: 480 })

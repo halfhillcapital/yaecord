@@ -4,6 +4,7 @@ import { Readable } from "stream";
 
 import { config } from '../config.ts';
 
+
 export async function whisperTranscribe(audio: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
         const url = `${config.WHISPER_URL}/inference`;
@@ -35,7 +36,7 @@ export async function kokoroTTS(text: string) {
         speed: 1.0,
         stream: true
     };
-    const response = await fetch(`${config.KOKORO_URL}/v1/audio/speech`, {
+    const response = await fetch(`${config.KOKORO_URL}/audio/speech`, {
         method: "POST",
         headers: {
             'content-type': 'application/json'

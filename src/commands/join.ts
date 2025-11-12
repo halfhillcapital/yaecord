@@ -2,6 +2,8 @@ import { SlashCommandBuilder, MessageFlags, ChatInputCommandInteraction, GuildMe
 import { getVoiceConnection } from "@discordjs/voice";
 
 import { startVoiceChat } from "../agent/voice.ts";
+import { getSessionManager } from "../agent/sessions.ts";
+import { get } from "http";
 
 export default {
     data: new SlashCommandBuilder()
@@ -20,8 +22,11 @@ export default {
 
         const member = interaction.member as GuildMember;
         const channel = member.voice.channel;
+
         if (channel) {
-            const connection = await startVoiceChat(channel);
+            const sessionManager = await getSessionManager()
+            const uuid = await sessionManager.getChannelSession(channel.id)
+            const connection = await startVoiceChat(channel, uuid);
             await interaction.reply({ content: `Joined ${channel.name} and ready to chat!`, flags: MessageFlags.Ephemeral });
         } else {
             await interaction.reply({ content: 'You must be in a voice channel for me to join you.', flags: MessageFlags.Ephemeral });
