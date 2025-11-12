@@ -92,7 +92,7 @@ discord.on(Events.MessageCreate, async (message) => {
 
         const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
         const response = await collectFromStream(msg)
-        if (response && !isStringEmpty(response)) await message.reply(response)
+        if (response && !isStringEmpty(response)) await message.channel.send(response)
         else console.log("Warning: Cannot send empty message.")
         return
     }
