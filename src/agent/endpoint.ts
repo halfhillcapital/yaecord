@@ -38,7 +38,7 @@ export async function createMessage(msg: ChatMessage): Promise<string> {
     return `${result.name}: ${result.content}`
 }
 
-export async function* yaeChatMessage(msg: ChatMessage): AsyncGenerator<string> {
+export async function* yaeRequest(msg: ChatMessage, method: ChatInterface = "text"): AsyncGenerator<string> {
     try {
         const response = await fetch(`${config.YAE_URL}/chat`, {
             method: "POST",
@@ -48,7 +48,7 @@ export async function* yaeChatMessage(msg: ChatMessage): AsyncGenerator<string> 
                     identifier: msg.user_id,
                     content: msg.content
                 },
-                interface: 'text',
+                interface: method,
                 platform: 'discord',
                 session: msg.session_uuid,
                 attachments: []
@@ -67,47 +67,5 @@ export async function* yaeChatMessage(msg: ChatMessage): AsyncGenerator<string> 
     } catch (error) { 
         console.error(error); 
         return 'Something went wrong. Please try again later.';
-    }
-}
-
-export async function* yaeVoiceMessage(msg: ChatMessage): AsyncGenerator<string> {
-    try {
-        const response = await fetch(`${config.YAE_URL}/chat`, {
-            method: "POST",
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                message: {
-                    identifier: msg.user_id,
-                    content: msg.content
-                },
-                interface: 'voice',
-                platform: 'discord',
-                session: msg.session_uuid,
-                attachments: []
-            }),
-        });
-        if (response.status !== 200) throw new Error(`HTTP ${response.status}`, { cause: await response.text() });
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            let sentenceEnd;
-            while ((sentenceEnd = buffer.search(/[.!?](?:\s|$)/)) !== -1) {
-                // Include the punctuation in the sentence
-                const sentence = buffer.slice(0, sentenceEnd + 1).trim();
-                if (sentence) yield sentence;
-                buffer = buffer.slice(sentenceEnd + 1);
-            }
-        }
-        // Yield any remaining text as a sentence
-        if (buffer.trim()) yield buffer.trim();
-    } catch (error) {
-        console.error(error);
-        yield 'Something went wrong. Please try again later.';
     }
 }

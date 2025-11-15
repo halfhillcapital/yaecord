@@ -3,7 +3,7 @@ import type { VoiceBasedChannel } from "discord.js";
 import { joinVoiceChannel, createAudioPlayer, EndBehaviorType, createAudioResource, StreamType, VoiceConnection } from "@discordjs/voice";
 
 import { AudioQueue, opusToWAV } from "./audio.ts";
-import { createMessage, yaeVoiceMessage } from "./endpoint.ts";
+import { createMessage, yaeRequest } from "./endpoint.ts";
 import { whisperTranscribe, kokoroTTS } from "./integrations.ts";
 
 
@@ -18,6 +18,22 @@ class AddressingDetector {
         const lowerCaseMessage = message.toLowerCase();
         return this.addressingKeywords.some(keyword => lowerCaseMessage.includes(keyword));
     }
+}
+
+async function* sentencesFromStream(msg: ChatMessage, method: ChatInterface = "text") {
+    let buffer = ""
+    for await (const chunk of yaeRequest(msg)) {
+        buffer += chunk
+
+        let sentenceEnd
+        while ((sentenceEnd = buffer.search(/[.!?](?:\s|$)/)) !== -1) {
+            // Include the punctuation in the sentence
+            const sentence = buffer.slice(0, sentenceEnd + 1).trim();
+            if (sentence) yield sentence;
+            buffer = buffer.slice(sentenceEnd + 1);
+        }
+    }
+    if (buffer.trim()) yield buffer.trim();
 }
 
 export async function startVoiceChat(channel: VoiceBasedChannel, session: string): Promise<VoiceConnection> {
@@ -83,7 +99,7 @@ export async function startVoiceChat(channel: VoiceBasedChannel, session: string
                 }
 
                 // OPUS output is currently bugged in Kokoro TTS, converting PCM to OPUS here in the meantime
-                for await (const sentence of yaeVoiceMessage({ user_id: userId, content: transcription, session_uuid: session })) {
+                for await (const sentence of sentencesFromStream({ user_id: userId, content: transcription, session_uuid: session }, "voice")) {
                     const pcmStream = await kokoroTTS(sentence);
                     const opusStream = pcmStream.pipe(
                         new prism.opus.Encoder({ rate: 24000, channels: 1, frameSize: 480 })

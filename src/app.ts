@@ -1,7 +1,6 @@
-import { JSONFilePreset } from "lowdb/node"
 import { Client, Events, Collection, GatewayIntentBits, MessageFlags, Partials } from "discord.js"
 
-import { yaeChatMessage } from "./agent/endpoint.ts"
+import { yaeRequest } from "./agent/endpoint.ts"
 import { getSessionManager } from "./agent/sessions.ts"
 
 
@@ -21,9 +20,9 @@ process.loadEnvFile()
 
 const sessionManager = await getSessionManager()
 
-async function collectFromStream(msg: ChatMessage): Promise<string> {
+async function collectFromStream(msg: ChatMessage, method: ChatInterface = "text"): Promise<string> {
     let response = ""
-    for await (const chunk of yaeChatMessage(msg)) {
+    for await (const chunk of yaeRequest(msg)) {
         response += chunk
     }
     return response

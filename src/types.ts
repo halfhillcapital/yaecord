@@ -1,4 +1,5 @@
 type Visibility = "public" | "private" | "secret"
+type ChatInterface = "text" | "voice"
 
 type ChatMessage = {
     user_id: string
