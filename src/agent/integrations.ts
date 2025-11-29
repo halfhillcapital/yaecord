@@ -2,6 +2,9 @@ import fetch from "node-fetch";
 import FormData from 'form-data';
 import { Readable } from "stream";
 
+import prism from 'prism-media';
+import type { CartesiaClient } from "@cartesia/cartesia-js";
+
 import { config } from '../config.ts';
 
 
@@ -19,9 +22,9 @@ export async function whisperTranscribe(audio: Buffer): Promise<string> {
             headers: form.getHeaders(),
             body: form
         })
-        .then(res => res.text())
-        .then(text => resolve(text.trim()))
-        .catch(err => reject(err));
+            .then(res => res.text())
+            .then(text => resolve(text.trim()))
+            .catch(err => reject(err));
     });
 }
 
@@ -35,14 +38,40 @@ export async function kokoroTTS(text: string) {
         response_format: 'pcm',
         speed: 1.0,
         stream: true
-    };
+    }
     const response = await fetch(`${config.KOKORO_URL}/audio/speech`, {
         method: "POST",
         headers: {
             'content-type': 'application/json'
         },
         body: JSON.stringify(body)
-    });
+    })
 
-    return Readable.from(response.body);
+    const opusStream = Readable.from(response.body).pipe(
+        new prism.opus.Encoder({ rate: 24000, channels: 1, frameSize: 480 })
+    )
+
+    return opusStream
+}
+
+export async function cartesiaTTS(text: string, client: CartesiaClient) {
+    const pcmStream = await client.tts.bytes({
+        modelId: "sonic-3",
+        transcript: text,
+        voice: {
+            mode: "id",
+            id: "2f722483-272b-4687-8639-4b0e9faf77d1",
+        },
+        language: "en",
+        outputFormat: {
+            container: "raw",
+            encoding: "pcm_s16le",
+            sampleRate: 48000
+        }
+    })
+    const opusStream = pcmStream.pipe(
+        new prism.opus.Encoder({ rate: 48000, channels: 1, frameSize: 960 })
+    )
+
+    return opusStream
 }
