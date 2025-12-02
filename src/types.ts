@@ -7,12 +7,12 @@ type ChatMessage = {
     session_uuid: string
 }
 
-type UserSession = {
-    user_id: string,
+type ChatSession = {
+    id: string,
     session_uuid: string
 }
 
 type SessionStorage = {
-    users: UserSession[],
-    channels: UserSession[]
+    users: ChatSession[],
+    channels: ChatSession[]
 }

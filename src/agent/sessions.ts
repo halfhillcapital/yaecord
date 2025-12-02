@@ -26,6 +26,12 @@ class SessionManager {
         }
     }
 
+    async createPublicSession(userId: string): Promise<string> {
+        const uuid = await createSession(userId, "public")
+
+        return uuid
+    }
+
     async getUserSession(userId: string): Promise<string> {
         await this.db.read()
         const { users } = this.db.data
@@ -60,13 +66,13 @@ class SessionManager {
         return sess.session_uuid
     }
 
-    async getAllUsers(): Promise<UserSession[]> {
+    async getAllUsers(): Promise<ChatSession[]> {
         await this.db.read()
         const { users } = this.db.data
         return users
     }
 
-    async getAllChannels(): Promise<UserSession[]> {
+    async getAllChannels(): Promise<ChatSession[]> {
         await this.db.read()
         const { channels } = this.db.data
         return channels

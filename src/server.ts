@@ -71,7 +71,7 @@ export function startAPIServer(discordClient: Client): Application {
 
             if (channel) {
                 const sessionManager = await getSessionManager()
-                const uuid = await sessionManager.getChannelSession(channel.id)
+                const uuid = await sessionManager.createPublicSession(process.env.DISCORD_CLIENT_ID)
                 const connection = await startVoiceChat(channel, uuid);
                 res.status(200).json({ success: true });
             } else res.status(500).json({ error: 'You must be in a voice channel for me to join you.' });
