@@ -38,7 +38,7 @@ export async function createMessage(msg: ChatMessage): Promise<string> {
     return `${result.name}: ${result.content}`
 }
 
-export async function* yaeRequest(msg: ChatMessage, method: ChatInterface = "text"): AsyncGenerator<string> {
+async function* yaeRequest(msg: ChatMessage, method: ChatInterface = "text"): AsyncGenerator<string> {
     try {
         const response = await fetch(`${config.YAE_URL}/chat`, {
             method: "POST",
@@ -68,4 +68,28 @@ export async function* yaeRequest(msg: ChatMessage, method: ChatInterface = "tex
         console.error(error); 
         return 'Something went wrong. Please try again later.';
     }
+}
+
+export async function collectFromStream(msg: ChatMessage, method: ChatInterface = "text"): Promise<string> {
+    let response = ""
+    for await (const chunk of yaeRequest(msg)) {
+        response += chunk
+    }
+    return response
+}
+
+export async function* sentencesFromStream(msg: ChatMessage, method: ChatInterface = "text") {
+    let buffer = ""
+    for await (const chunk of yaeRequest(msg, method)) {
+        buffer += chunk
+
+        let sentenceEnd
+        while ((sentenceEnd = buffer.search(/[.!?](?:\s|$)/)) !== -1) {
+            // Include the punctuation in the sentence
+            const sentence = buffer.slice(0, sentenceEnd + 1).trim();
+            if (sentence) yield sentence;
+            buffer = buffer.slice(sentenceEnd + 1);
+        }
+    }
+    if (buffer.trim()) yield buffer.trim();
 }

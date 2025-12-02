@@ -1,6 +1,12 @@
-import { Client, Events, Collection, GatewayIntentBits, MessageFlags, Partials } from "discord.js"
+import { 
+    Client, 
+    Events, 
+    Collection, 
+    GatewayIntentBits, 
+    MessageFlags, 
+    Partials } from "discord.js"
 
-import { yaeRequest } from "./agent/endpoint.ts"
+import { collectFromStream } from "./agent/endpoint.ts"
 import { getSessionManager } from "./agent/sessions.ts"
 
 
@@ -19,14 +25,6 @@ import clean from "./commands/clean.ts"
 process.loadEnvFile()
 
 const sessionManager = await getSessionManager()
-
-async function collectFromStream(msg: ChatMessage, method: ChatInterface = "text"): Promise<string> {
-    let response = ""
-    for await (const chunk of yaeRequest(msg)) {
-        response += chunk
-    }
-    return response
-}
 
 function isStringEmpty(str: string): boolean {
     return !str || str.trim() === ''
@@ -82,30 +80,31 @@ discord.on(Events.MessageCreate, async (message) => {
 
     const userId = message.author.id
     const channelId = message.channel.id
+    const channel = message.channel
     const content = message.content
 
     // Direct Message
     if (message.guild === null) {
-        await message.channel.sendTyping()
+        await channel.sendTyping()
         
         try {
             const uuid = await sessionManager.getUserSession(userId)
             const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
 
             const response = await collectFromStream(msg)
-            if (response && !isStringEmpty(response)) await message.channel.send(response)
+            if (response && !isStringEmpty(response)) await channel.send(response)
             else console.warn("Warning: Cannot send empty message.")
         } catch (error) {
             console.error(error)
-            message.channel.send("Unable to process your request at the moment.")
+            await channel.send("Unable to process your request at the moment.")
         }
         return
     }
 
     // Mentions and Replies
     if (message.mentions.has(discord.user || '') || message.reference) {
-        await message.channel.sendTyping()
-        
+        await channel.sendTyping()
+
         try {
             const uuid = await sessionManager.getChannelSession(channelId)
             const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
@@ -115,7 +114,7 @@ discord.on(Events.MessageCreate, async (message) => {
             else console.warn("Warning: Cannot send empty message.")
         } catch (error) {
             console.error(error)
-            message.reply("Unable to process your request at the moment.")
+            await message.reply("Unable to process your request at the moment.")
         }
         return
     }

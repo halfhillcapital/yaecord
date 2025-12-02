@@ -4,7 +4,7 @@ import type { VoiceBasedChannel } from "discord.js";
 import { joinVoiceChannel, createAudioPlayer, EndBehaviorType, createAudioResource, StreamType, VoiceConnection } from "@discordjs/voice";
 
 import { AudioQueue } from "./audio.ts";
-import { createMessage, yaeRequest } from "./endpoint.ts";
+import { createMessage, sentencesFromStream } from "./endpoint.ts";
 import { cartesiaTTS } from "./integrations.ts";
 
 
@@ -66,22 +66,6 @@ class UserConnection {
         })
         this.sttConnection = connection;
     }
-}
-
-async function* sentencesFromStream(msg: ChatMessage, method: ChatInterface = "text") {
-    let buffer = ""
-    for await (const chunk of yaeRequest(msg, method)) {
-        buffer += chunk
-
-        let sentenceEnd
-        while ((sentenceEnd = buffer.search(/[.!?](?:\s|$)/)) !== -1) {
-            // Include the punctuation in the sentence
-            const sentence = buffer.slice(0, sentenceEnd + 1).trim();
-            if (sentence) yield sentence;
-            buffer = buffer.slice(sentenceEnd + 1);
-        }
-    }
-    if (buffer.trim()) yield buffer.trim();
 }
 
 export async function startVoiceChat(channel: VoiceBasedChannel, session: string): Promise<VoiceConnection> {
