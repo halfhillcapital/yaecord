@@ -87,24 +87,36 @@ discord.on(Events.MessageCreate, async (message) => {
     // Direct Message
     if (message.guild === null) {
         await message.channel.sendTyping()
-        const uuid = await sessionManager.getUserSession(userId)
+        
+        try {
+            const uuid = await sessionManager.getUserSession(userId)
+            const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
 
-        const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
-        const response = await collectFromStream(msg)
-        if (response && !isStringEmpty(response)) await message.channel.send(response)
-        else console.log("Warning: Cannot send empty message.")
+            const response = await collectFromStream(msg)
+            if (response && !isStringEmpty(response)) await message.channel.send(response)
+            else console.warn("Warning: Cannot send empty message.")
+        } catch (error) {
+            console.error(error)
+            message.channel.send("Unable to process your request at the moment.")
+        }
         return
     }
 
     // Mentions and Replies
     if (message.mentions.has(discord.user || '') || message.reference) {
         await message.channel.sendTyping()
-        const uuid = await sessionManager.getChannelSession(channelId)
+        
+        try {
+            const uuid = await sessionManager.getChannelSession(channelId)
+            const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
 
-        const msg: ChatMessage = { user_id: userId, content: content, session_uuid: uuid }
-        const response = await collectFromStream(msg)
-        if (response && !isStringEmpty(response)) await message.reply(response)
-        else console.log("Warning: Cannot send empty message.")
+            const response = await collectFromStream(msg)
+            if (response && !isStringEmpty(response)) await message.reply(response)
+            else console.warn("Warning: Cannot send empty message.")
+        } catch (error) {
+            console.error(error)
+            message.reply("Unable to process your request at the moment.")
+        }
         return
     }
 });
