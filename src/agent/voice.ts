@@ -1,12 +1,14 @@
 import { createClient, DeepgramClient, ListenLiveClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import { CartesiaClient } from "@cartesia/cartesia-js";
 import type { VoiceBasedChannel } from "discord.js";
-import { joinVoiceChannel, createAudioPlayer, EndBehaviorType, createAudioResource, StreamType, VoiceConnection } from "@discordjs/voice";
+import { joinVoiceChannel, createAudioPlayer, EndBehaviorType, createAudioResource, StreamType, VoiceConnection, VoiceConnectionStatus } from "@discordjs/voice";
 
 import { AudioQueue } from "./audio.ts";
 import { createMessage, sentencesFromStream } from "./endpoint.ts";
 import { cartesiaTTS } from "./integrations.ts";
 
+// Issues
+// The first time a user speaks after Yae joins, it only sets up Deepgram but does not transcribe
 
 class AddressingDetector {
     private addressingKeywords: string[];
@@ -37,6 +39,7 @@ class UserConnection {
     public setupTranscriptionHandlers(deepgram: DeepgramClient, onTranscript: (data: any) => Promise<void>) {
         const connection = deepgram.listen.live({
             model: 'nova-3',
+            language: 'de',
             encoding: 'opus',
             sample_rate: 48000,
             channels: 2,
@@ -107,7 +110,7 @@ export async function startVoiceChat(channel: VoiceBasedChannel, session: string
 
                 if (isGroupChat && !addressingDetector.detect(transcript)) {
                     const savedMessage = await createMessage({ user_id: userId, content: transcript, session_uuid: session })
-                    console.log("Not addressed to Yae, saved message:", savedMessage)
+                    console.log("SAVED | ", savedMessage)
                     return
                 }
 
@@ -126,7 +129,7 @@ export async function startVoiceChat(channel: VoiceBasedChannel, session: string
         const audioStream = connection.receiver.subscribe(userId, {
             end: {
                 behavior: EndBehaviorType.AfterSilence,
-                duration: 250,
+                duration: 1000,
             },
         });
 
@@ -141,6 +144,18 @@ export async function startVoiceChat(channel: VoiceBasedChannel, session: string
         audioStream.on('error', (err) => {
             console.error(`Audio Stream Error ${userId}:`, err)
         })
+    });
+
+    // Clean up on disconnect
+    connection.on('stateChange', (oldState, newState) => {
+        if (newState.status === VoiceConnectionStatus.Destroyed) {
+            console.log('Voice connection disconnected, cleaning up Deepgram connections');
+            for (const userConn of activeStreams.values()) {
+                if (userConn.sttConnection) {
+                    userConn.sttConnection.disconnect();
+                }
+            }
+        }
     });
 
     return connection;
