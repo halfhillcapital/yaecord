@@ -14,11 +14,6 @@ export default {
             return;
         }
 
-        if (interaction.member.user.id != process.env.ADMIN_ID) {
-            await interaction.reply({ content: 'Absolutely not. Find someone else to bother.', flags: MessageFlags.Ephemeral });
-            return;
-        }
-
         const member = interaction.member as GuildMember;
         const channel = member.voice.channel;
 
