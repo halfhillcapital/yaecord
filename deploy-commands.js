@@ -4,6 +4,7 @@ import join from "./src/commands/join.ts"
 import leave from "./src/commands/leave.ts"
 import deafen from "./src/commands/deafen.ts";
 import clean from "./src/commands/clean.ts"
+import register from "./src/commands/register.ts";
 
 process.loadEnvFile();
 
@@ -14,6 +15,7 @@ const guildCommands = [];
 guildCommands.push(join.data.toJSON());
 guildCommands.push(leave.data.toJSON());
 guildCommands.push(deafen.data.toJSON());
+guildCommands.push(register.data.toJSON());
 
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(process.env.DISCORD_API_KEY);

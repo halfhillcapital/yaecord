@@ -21,6 +21,7 @@ import join from "./commands/join.ts"
 import leave from "./commands/leave.ts"
 import deafen from "./commands/deafen.ts"
 import clean from "./commands/clean.ts"
+import register from "./commands/register.ts"
 
 process.loadEnvFile()
 
@@ -48,6 +49,7 @@ discord.commands.set(join.data.name, join)
 discord.commands.set(leave.data.name, leave)
 discord.commands.set(deafen.data.name, deafen)
 discord.commands.set(clean.data.name, clean)
+discord.commands.set(register.data.name, register)
 
 // Executing Slash Commands
 discord.on(Events.InteractionCreate, async interaction => {

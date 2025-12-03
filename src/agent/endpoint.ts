@@ -38,6 +38,21 @@ export async function createMessage(msg: ChatMessage): Promise<string> {
     return `${result.name}: ${result.content}`
 }
 
+export async function registerUser(name: string, discord_id: string, discord_username: string): Promise<string> {
+    const response = await fetch(`${config.YAE_URL}/users`, {
+            method: "POST",
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                discord_id: discord_id,
+                discord_username: discord_username
+            })
+        })
+    if (response.status !== 200) throw new Error(`HTTP ${response.status}`, { cause: await response.text() });
+    const result = await response.json()
+    return result.name
+}
+
 async function* yaeRequest(msg: ChatMessage, method: ChatInterface = "text"): AsyncGenerator<string> {
     try {
         const response = await fetch(`${config.YAE_URL}/chat`, {
